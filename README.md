@@ -1,0 +1,25 @@
+# bi-analyst-agent
+
+A LangGraph BI analyst agent: ask questions in plain English, get validated SQL,
+executed results, charts, and a written explanation. Built as the standalone
+research version of the conversational-BI techniques I ship in production.
+
+## Status
+
+Phase 1: foundation. `notebooks/quickstart.ipynb` is the seed (from
+[vanna-ai/vanna](https://github.com/vanna-ai/vanna), MIT), being rebuilt into a
+proper agent loop in `src/`.
+
+## Roadmap
+
+- [x] Import vanna quickstart notebook as baseline
+- [ ] LangGraph agent loop: plan → schema-retrieve → generate → validate → execute → self-correct → chart → narrate
+- [ ] Schema RAG: embedded table/column metadata + example queries
+- [ ] Guardrails: read-only enforcement, SQL lint, row limits, EXPLAIN-first
+- [ ] Eval harness: golden question set, execution-accuracy scoring (defog-ai/sql-eval methodology)
+- [ ] FastAPI service layer
+- [ ] Stretch: QLoRA fine-tuned small model vs API baseline, honestly compared
+
+## License
+
+MIT. Seed notebook credit: vanna-ai/vanna (MIT).

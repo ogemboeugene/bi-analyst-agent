@@ -1,0 +1,10 @@
+vanna
+langgraph
+langchain
+langchain-openai
+duckdb
+polars
+pandas
+matplotlib
+jupyter
+python-dotenv
