@@ -1,0 +1,74 @@
+[
+  {
+    "id": "rev_by_country",
+    "category": "join_aggregation",
+    "question": "Total revenue by country, highest first",
+    "gold_sql": "SELECT c.country, SUM(oi.quantity * oi.unit_price) AS revenue FROM orders o JOIN customers c ON o.customer_id = c.customer_id JOIN order_items oi ON o.order_id = oi.order_id WHERE o.status = 'completed' GROUP BY c.country ORDER BY revenue DESC"
+  },
+  {
+    "id": "top_products",
+    "category": "top_n",
+    "question": "Top 5 products by revenue",
+    "gold_sql": "SELECT p.name, SUM(oi.quantity * oi.unit_price) AS revenue FROM order_items oi JOIN products p ON oi.product_id = p.product_id JOIN orders o ON oi.order_id = o.order_id WHERE o.status = 'completed' GROUP BY p.name ORDER BY revenue DESC LIMIT 5"
+  },
+  {
+    "id": "order_count_status",
+    "category": "filter_count",
+    "question": "How many orders were returned?",
+    "gold_sql": "SELECT COUNT(*) AS returned_orders FROM orders WHERE status = 'returned'"
+  },
+  {
+    "id": "avg_order_value_segment",
+    "category": "ratio",
+    "question": "Average order value by customer segment",
+    "gold_sql": "SELECT c.segment, AVG(order_total) AS avg_order_value FROM (SELECT o.order_id, SUM(oi.quantity * oi.unit_price) AS order_total, o.customer_id FROM orders o JOIN order_items oi ON o.order_id = oi.order_id WHERE o.status = 'completed' GROUP BY o.order_id, o.customer_id) t JOIN customers c ON t.customer_id = c.customer_id GROUP BY c.segment ORDER BY avg_order_value DESC"
+  },
+  {
+    "id": "monthly_revenue",
+    "category": "time_series",
+    "question": "Monthly revenue trend for 2025",
+    "gold_sql": "SELECT strftime('%Y-%m', o.order_date) AS month, SUM(oi.quantity * oi.unit_price) AS revenue FROM orders o JOIN order_items oi ON o.order_id = oi.order_id WHERE o.status = 'completed' GROUP BY month ORDER BY month"
+  },
+  {
+    "id": "category_share",
+    "category": "share",
+    "question": "Revenue share by product category",
+    "gold_sql": "SELECT p.category, SUM(oi.quantity * oi.unit_price) AS revenue FROM order_items oi JOIN products p ON oi.product_id = p.product_id JOIN orders o ON oi.order_id = o.order_id WHERE o.status = 'completed' GROUP BY p.category ORDER BY revenue DESC"
+  },
+  {
+    "id": "top_customer",
+    "category": "top_n",
+    "question": "Which customer spent the most?",
+    "gold_sql": "SELECT c.name, SUM(oi.quantity * oi.unit_price) AS total_spent FROM customers c JOIN orders o ON c.customer_id = o.customer_id JOIN order_items oi ON o.order_id = oi.order_id WHERE o.status = 'completed' GROUP BY c.name ORDER BY total_spent DESC LIMIT 1"
+  },
+  {
+    "id": "unique_customers",
+    "category": "distinct_count",
+    "question": "How many unique customers placed orders in 2025?",
+    "gold_sql": "SELECT COUNT(DISTINCT customer_id) AS unique_customers FROM orders WHERE order_date >= '2025-01-01' AND order_date <= '2025-12-31'"
+  },
+  {
+    "id": "kenya_electronics",
+    "category": "multi_filter",
+    "question": "Customers in Kenya who bought electronics",
+    "gold_sql": "SELECT DISTINCT c.name FROM customers c JOIN orders o ON c.customer_id = o.customer_id JOIN order_items oi ON o.order_id = oi.order_id JOIN products p ON oi.product_id = p.product_id WHERE c.country = 'Kenya' AND p.category = 'electronics'"
+  },
+  {
+    "id": "newest_customers",
+    "category": "simple",
+    "question": "The 5 most recently signed-up customers",
+    "gold_sql": "SELECT name, signed_up FROM customers ORDER BY signed_up DESC LIMIT 5"
+  },
+  {
+    "id": "cancelled_rev_loss",
+    "category": "multi_step",
+    "question": "How much revenue was lost to cancelled orders?",
+    "gold_sql": "SELECT SUM(oi.quantity * oi.unit_price) AS lost_revenue FROM orders o JOIN order_items oi ON o.order_id = oi.order_id WHERE o.status = 'cancelled'"
+  },
+  {
+    "id": "qty_by_category",
+    "category": "join_aggregation",
+    "question": "Total units sold per product category",
+    "gold_sql": "SELECT p.category, SUM(oi.quantity) AS units_sold FROM order_items oi JOIN products p ON oi.product_id = p.product_id JOIN orders o ON oi.order_id = o.order_id WHERE o.status = 'completed' GROUP BY p.category ORDER BY units_sold DESC"
+  }
+]

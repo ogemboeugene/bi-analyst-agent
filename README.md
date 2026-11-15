@@ -16,7 +16,7 @@ proper agent loop in `src/`.
 - [x] LangGraph agent loop: plan → schema-retrieve → generate → validate → execute → self-correct → chart → narrate (`src/agent.py`)
 - [x] Schema RAG: per-table DDL docs ranked by question relevance (`src/schema_rag.py`)
 - [x] Guardrails: single-statement read-only enforcement via sqlglot, auto-LIMIT, EXPLAIN-first (`src/guardrails.py`)
-- [ ] Eval harness: golden question set, execution-accuracy scoring (defog-ai/sql-eval methodology)
+- [x] Eval harness: 12-question golden set, execution-accuracy scoring, per-run results.json (`evals/`, `src/eval_harness.py`) — run `python -m src.eval_harness`
 - [ ] FastAPI service layer
 - [ ] Stretch: QLoRA fine-tuned small model vs API baseline, honestly compared
 

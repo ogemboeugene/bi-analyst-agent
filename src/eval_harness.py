@@ -1,0 +1,91 @@
+"""Execution-accuracy eval harness (defog-ai/sql-eval methodology).
+
+For each golden question: run the agent, execute its SQL, execute the gold
+SQL, compare result sets (order-insensitive). Writes evals/results.json.
+
+Run: python -m src.eval_harness
+"""
+from __future__ import annotations
+
+import json
+import os
+import time
+from typing import Any
+
+from .agent import ask
+from .config import settings
+from .db import run_query
+from .guardrails import validate_and_harden
+
+GOLDEN_PATH = os.path.join(os.path.dirname(__file__), "..", "evals", "golden.json")
+RESULTS_PATH = os.path.join(
+    os.path.dirname(__file__), "..", "evals", "results.json"
+)
+
+
+def _normalize(rows: list[dict[str, Any]]) -> list[tuple]:
+    """Order-insensitive comparable form; floats rounded to kill fp noise."""
+    out = []
+    for r in rows:
+        row = []
+        for v in r.values():
+            row.append(round(v, 4) if isinstance(v, float) else v)
+        out.append(tuple(sorted(row, key=repr)))
+    return sorted(out, key=repr)
+
+
+def results_match(gen_rows: list[dict], gold_rows: list[dict]) -> bool:
+    return _normalize(gen_rows) == _normalize(gold_rows)
+
+
+def run_eval() -> dict:
+    with open(GOLDEN_PATH) as f:
+        golden = json.load(f)
+
+    results = []
+    correct = 0
+    for item in golden:
+        t0 = time.time()
+        record = {"id": item["id"], "category": item["category"], "ok": False}
+        try:
+            state = ask(item["question"])
+            sql = state.get("sql", "")
+            record["sql"] = sql
+            record["attempts"] = state.get("attempts", 0)
+            record["trace"] = state.get("trace", [])
+            if not sql or state.get("answer", "").startswith("Could not"):
+                record["reason"] = "agent_failed"
+            else:
+                hardened = validate_and_harden(sql)
+                _, gen_rows = run_query(hardened, max_rows=10_000)
+                _, gold_rows = run_query(item["gold_sql"], max_rows=10_000)
+                record["ok"] = results_match(gen_rows, gold_rows)
+                if not record["ok"]:
+                    record["reason"] = "wrong_results"
+        except Exception as e:
+            record["reason"] = "exception"
+            record["error"] = str(e)
+        record["seconds"] = round(time.time() - t0, 1)
+        correct += record["ok"]
+        results.append(record)
+        print(
+            f"[{'PASS' if record['ok'] else 'FAIL'}] {item['id']} "
+            f"({record.get('reason', 'match')}, {record['seconds']}s)"
+        )
+
+    summary = {
+        "accuracy": round(correct / len(golden), 4),
+        "correct": correct,
+        "total": len(golden),
+        "model": settings.model,
+        "results": results,
+    }
+    with open(RESULTS_PATH, "w") as f:
+        json.dump(summary, f, indent=2, default=str)
+    print(f"\nAccuracy: {correct}/{len(golden)} = {summary['accuracy']:.0%}")
+    print(f"Wrote {RESULTS_PATH}")
+    return summary
+
+
+if __name__ == "__main__":
+    run_eval()
