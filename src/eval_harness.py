@@ -21,6 +21,9 @@ GOLDEN_PATH = os.path.join(os.path.dirname(__file__), "..", "evals", "golden.jso
 RESULTS_PATH = os.path.join(
     os.path.dirname(__file__), "..", "evals", "results.json"
 )
+HISTORY_PATH = os.path.join(
+    os.path.dirname(__file__), "..", "evals", "history.jsonl"
+)
 
 
 def _normalize(rows: list[dict[str, Any]]) -> list[tuple]:
@@ -73,16 +76,36 @@ def run_eval() -> dict:
             f"({record.get('reason', 'match')}, {record['seconds']}s)"
         )
 
+    by_cat: dict[str, list[bool]] = {}
+    for r, item in zip(results, golden):
+        by_cat.setdefault(item["category"], []).append(bool(r["ok"]))
+    category_accuracy = {
+        cat: round(sum(v) / len(v), 4) for cat, v in sorted(by_cat.items())
+    }
     summary = {
         "accuracy": round(correct / len(golden), 4),
         "correct": correct,
         "total": len(golden),
         "model": settings.model,
+        "by_category": category_accuracy,
         "results": results,
     }
     with open(RESULTS_PATH, "w") as f:
         json.dump(summary, f, indent=2, default=str)
+    with open(HISTORY_PATH, "a") as f:
+        f.write(
+            json.dumps(
+                {
+                    "ts": time.strftime("%Y-%m-%dT%H:%M:%S"),
+                    "model": settings.model,
+                    "accuracy": summary["accuracy"],
+                }
+            )
+            + "\n"
+        )
     print(f"\nAccuracy: {correct}/{len(golden)} = {summary['accuracy']:.0%}")
+    for cat, acc in category_accuracy.items():
+        print(f"  {cat}: {acc:.0%}")
     print(f"Wrote {RESULTS_PATH}")
     return summary
 
