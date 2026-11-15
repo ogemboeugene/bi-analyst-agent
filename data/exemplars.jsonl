@@ -1,0 +1,6 @@
+{"question": "List all products in the household category", "sql": "SELECT name, unit_price FROM products WHERE category = 'household'"}
+{"question": "How many customers are in each segment?", "sql": "SELECT segment, COUNT(*) AS n FROM customers GROUP BY segment ORDER BY n DESC"}
+{"question": "Which orders were placed in January 2025?", "sql": "SELECT order_id, customer_id, order_date FROM orders WHERE order_date >= '2025-01-01' AND order_date < '2025-02-01'"}
+{"question": "Average quantity per order line", "sql": "SELECT AVG(quantity) AS avg_qty FROM order_items"}
+{"question": "Count of completed vs cancelled orders", "sql": "SELECT status, COUNT(*) AS n FROM orders GROUP BY status ORDER BY n DESC"}
+{"question": "test q unique", "sql": "SELECT 1"}

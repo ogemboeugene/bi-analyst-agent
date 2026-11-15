@@ -15,6 +15,7 @@ from langgraph.graph import END, START, StateGraph
 
 from .config import settings
 from .db import explain, run_query
+from .exemplars import few_shot_block, save as save_exemplar
 from .guardrails import GuardrailError, validate_and_harden
 from .llm import chat
 from .prompts import (
@@ -68,8 +69,10 @@ def generate_sql(state: AgentState) -> dict:
         if state.get("plan")
         else f"Question: {q}"
     )
+    memory = few_shot_block(q)
     raw = chat(
-        GENERATE_SQL_PROMPT.format(schema=state["schema_context"]), user
+        GENERATE_SQL_PROMPT.format(schema=state["schema_context"]),
+        f"{user}\n\n{memory}" if memory else user,
     )
     sql = _strip_fences(raw)
     return {"sql": sql, "error": None, **_trace(state, "generate_sql")}
@@ -164,6 +167,14 @@ def narrate(state: AgentState) -> dict:
     return {"answer": raw, **_trace(state, "narrate")}
 
 
+def remember(state: AgentState) -> dict:
+    """Persist verified question->SQL pairs as future few-shot exemplars."""
+    if state.get("rows") and state.get("sql"):
+        save_exemplar(state["question"], state["sql"])
+        return _trace(state, "remember:saved")
+    return _trace(state, "remember:skipped")
+
+
 def _strip_fences(text: str) -> str:
     m = re.search(r"```(?:sql)?\s*(.*?)```", text, re.S)
     return (m.group(1) if m else text).strip()
@@ -202,6 +213,7 @@ def build_graph() -> StateGraph:
     g.add_node("self_correct", self_correct)
     g.add_node("chart", chart)
     g.add_node("narrate", narrate)
+    g.add_node("remember", remember)
     g.add_node("fail", fail)
 
     g.add_edge(START, "plan")
@@ -211,7 +223,8 @@ def build_graph() -> StateGraph:
     g.add_conditional_edges("execute", _route_after_execute)
     g.add_edge("self_correct", "validate")
     g.add_edge("chart", "narrate")
-    g.add_edge("narrate", END)
+    g.add_edge("narrate", "remember")
+    g.add_edge("remember", END)
     g.add_edge("fail", END)
     return g
 
