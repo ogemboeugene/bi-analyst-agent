@@ -55,7 +55,8 @@ python -m src.cli "total revenue by country in 2025"
 python -m src.cli "and by segment?" --thread demo        # follow-up uses memory
 python -m src.cli "monthly revenue trend" --stream       # live node events
 python -m src.eval_harness                               # accuracy on golden set
-pytest -q                                                # 27 tests
+uvicorn src.api:app --reload                             # POST /ask, /ask/stream (SSE), /schema, /health
+pytest -q                                                # 31 tests
 ```
 
 ## Design notes
@@ -87,7 +88,7 @@ tracing of every node and LLM call.
 - [x] Conversation memory (`MemorySaver` + follow-up resolution)
 - [x] Eval harness (execution accuracy + categories + history)
 - [x] Streaming (`--stream`) + pytest suite
-- [ ] FastAPI service layer
+- [x] FastAPI service layer (`/ask`, `/ask/stream` SSE, `/schema`, `/health`)
 - [ ] Stretch: QLoRA fine-tuned small model vs API baseline
 
 ## License
