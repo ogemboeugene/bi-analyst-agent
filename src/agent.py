@@ -78,10 +78,13 @@ def generate_sql(state: AgentState) -> dict:
 def validate(state: AgentState) -> dict:
     try:
         hardened = validate_and_harden(state["sql"])
+    except GuardrailError as e:
+        return {"error": str(e), **_trace(state, f"validate:guardrail {e}")}
+    try:
         explain(hardened)  # fail fast on bad plans before real execution
-        return {"sql": hardened, "error": None, **_trace(state, "validate:ok")}
-    except (GuardrailError, Exception) as e:
-        return {"error": str(e), **_trace(state, f"validate:fail {e}")}
+    except Exception as e:
+        return {"error": str(e), **_trace(state, f"validate:plan {e}")}
+    return {"sql": hardened, "error": None, **_trace(state, "validate:ok")}
 
 
 def execute(state: AgentState) -> dict:

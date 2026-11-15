@@ -43,7 +43,10 @@ def validate_and_harden(sql: str, max_rows: int = settings.max_rows) -> str:
         if isinstance(node, forbidden):
             raise GuardrailError("Write/DDL operations are not allowed.")
 
-    if stmt.args.get("limit") is None and not isinstance(stmt, exp.With):
-        stmt = stmt.limit(max_rows)
+    if stmt.args.get("limit") is None:
+        if isinstance(stmt, exp.With):
+            stmt.expression.limit(max_rows)
+        else:
+            stmt.limit(max_rows)
 
     return stmt.sql(dialect="duckdb")
