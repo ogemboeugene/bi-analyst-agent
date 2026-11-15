@@ -146,6 +146,7 @@ def self_correct(state: AgentState) -> dict:
 
 def chart(state: AgentState) -> dict:
     import os
+    from decimal import Decimal
 
     import matplotlib
 
@@ -157,7 +158,9 @@ def chart(state: AgentState) -> dict:
         return {"chart_path": None, **_trace(state, "chart:skipped")}
 
     num_cols = [
-        c for c in cols if all(isinstance(r.get(c), (int, float)) for r in rows)
+        c
+        for c in cols
+        if all(isinstance(r.get(c), (int, float, Decimal)) for r in rows)
     ]
     label_cols = [c for c in cols if c not in num_cols]
     if not num_cols or not label_cols:

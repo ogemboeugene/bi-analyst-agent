@@ -11,8 +11,12 @@ load_dotenv()
 
 @dataclass(frozen=True)
 class Settings:
-    openai_api_key: str = os.getenv("OPENAI_API_KEY", "")
-    model: str = os.getenv("AGENT_MODEL", "gpt-4o-mini")
+    # OpenRouter-compatible by default; OPENAI_* vars kept as fallback
+    ai_base_url: str = os.getenv("AI_BASE_URL", "https://api.openai.com/v1")
+    ai_api_key: str = os.getenv(
+        "AI_API_KEY", os.getenv("OPENAI_API_KEY", "")
+    )
+    model: str = os.getenv("AI_MODEL", os.getenv("AGENT_MODEL", "gpt-4o-mini"))
     db_path: str = os.getenv("AGENT_DB_PATH", "demo.duckdb")
     max_rows: int = int(os.getenv("AGENT_MAX_ROWS", "200"))
     max_attempts: int = int(os.getenv("AGENT_MAX_ATTEMPTS", "3"))
