@@ -1,7 +1,9 @@
 vanna
 langgraph
 langchain
+langchain-core
 langchain-openai
+sqlglot
 duckdb
 polars
 pandas

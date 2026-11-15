@@ -13,9 +13,9 @@ proper agent loop in `src/`.
 ## Roadmap
 
 - [x] Import vanna quickstart notebook as baseline
-- [ ] LangGraph agent loop: plan → schema-retrieve → generate → validate → execute → self-correct → chart → narrate
-- [ ] Schema RAG: embedded table/column metadata + example queries
-- [ ] Guardrails: read-only enforcement, SQL lint, row limits, EXPLAIN-first
+- [x] LangGraph agent loop: plan → schema-retrieve → generate → validate → execute → self-correct → chart → narrate (`src/agent.py`)
+- [x] Schema RAG: per-table DDL docs ranked by question relevance (`src/schema_rag.py`)
+- [x] Guardrails: single-statement read-only enforcement via sqlglot, auto-LIMIT, EXPLAIN-first (`src/guardrails.py`)
 - [ ] Eval harness: golden question set, execution-accuracy scoring (defog-ai/sql-eval methodology)
 - [ ] FastAPI service layer
 - [ ] Stretch: QLoRA fine-tuned small model vs API baseline, honestly compared
