@@ -45,8 +45,8 @@ def validate_and_harden(sql: str, max_rows: int = settings.max_rows) -> str:
 
     if stmt.args.get("limit") is None:
         if isinstance(stmt, exp.With):
-            stmt.expression.limit(max_rows)
+            stmt.set("expression", stmt.expression.limit(max_rows))
         else:
-            stmt.limit(max_rows)
+            stmt = stmt.limit(max_rows)
 
     return stmt.sql(dialect="duckdb")
