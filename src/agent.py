@@ -24,6 +24,7 @@ from .prompts import (
     GENERATE_SQL_PROMPT,
     NARRATE_PROMPT,
     PLAN_PROMPT,
+    REWRITE_PROMPT,
 )
 from .schema_rag import SchemaIndex
 
@@ -44,6 +45,7 @@ class AgentState(TypedDict, total=False):
     attempts: int
     chart_path: Optional[str]
     answer: str
+    history: list[str]
     trace: list[str]
 
 
@@ -59,6 +61,19 @@ def _index_or_create() -> SchemaIndex:
 
 def _trace(state: AgentState, msg: str) -> dict:
     return {"trace": state.get("trace", []) + [msg]}
+
+
+def resolve_question(state: AgentState) -> dict:
+    """Rewrite follow-ups into standalone questions using chat history."""
+    history = state.get("history") or []
+    q = state["question"]
+    if not history:
+        return _trace(state, "resolve:standalone")
+    rewritten = chat(
+        REWRITE_PROMPT,
+        f"History:\n" + "\n".join(history[-6:]) + f"\n\nFollow-up: {q}",
+    )
+    return {"question": rewritten, **_trace(state, f"resolve:rewrote -> {rewritten[:60]}")}
 
 
 def plan(state: AgentState) -> dict:
@@ -172,7 +187,10 @@ def narrate(state: AgentState) -> dict:
         f"Question: {state['question']}\nSQL: {state['sql']}\n"
         f"Columns: {state.get('columns')}\nRows (preview): {preview}",
     )
-    return {"answer": raw, **_trace(state, "narrate")}
+    history = (state.get("history") or []) + [
+        f"Q: {state['question']} | A: {raw[:200]}"
+    ]
+    return {"answer": raw, "history": history, **_trace(state, "narrate")}
 
 
 def remember(state: AgentState) -> dict:
@@ -209,6 +227,7 @@ def fail(state: AgentState) -> dict:
 
 def build_graph() -> StateGraph:
     g = StateGraph(AgentState)
+    g.add_node("resolve_question", resolve_question)
     g.add_node("plan", plan)
     g.add_node("generate_sql", generate_sql)
     g.add_node("validate", validate)
@@ -219,7 +238,8 @@ def build_graph() -> StateGraph:
     g.add_node("remember", remember)
     g.add_node("fail", fail)
 
-    g.add_edge(START, "plan")
+    g.add_edge(START, "resolve_question")
+    g.add_edge("resolve_question", "plan")
     g.add_edge("plan", "generate_sql")
     g.add_edge("generate_sql", "validate")
     g.add_conditional_edges("validate", _route_after_validate)
@@ -235,8 +255,27 @@ def build_graph() -> StateGraph:
 _compiled = None
 
 
-def ask(question: str) -> AgentState:
+def _get_graph():
     global _compiled
     if _compiled is None:
-        _compiled = build_graph().compile()
-    return _compiled.invoke({"question": question, "attempts": 0, "trace": []})
+        from langgraph.checkpoint.memory import MemorySaver
+
+        _compiled = build_graph().compile(checkpointer=MemorySaver())
+    return _compiled
+
+
+def ask(question: str, thread_id: str = "default") -> AgentState:
+    """Run one turn. Same thread_id = shared conversation history."""
+    return _get_graph().invoke(
+        {"question": question, "attempts": 0, "trace": []},
+        config={"configurable": {"thread_id": thread_id}},
+    )
+
+
+def ask_stream(question: str, thread_id: str = "default"):
+    """Yield (node, state-delta) events as the graph executes."""
+    yield from _get_graph().stream(
+        {"question": question, "attempts": 0, "trace": []},
+        config={"configurable": {"thread_id": thread_id}},
+        stream_mode="updates",
+    )

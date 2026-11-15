@@ -29,6 +29,11 @@ Error:
 {error}
 """
 
+REWRITE_PROMPT = """Given a conversation history and a follow-up question,
+rewrite the follow-up as a fully standalone question that captures the user's
+intent without needing the history. If it is already standalone, return it
+unchanged. Output ONLY the rewritten question."""
+
 NARRATE_PROMPT = """You are a BI analyst reporting to a stakeholder. Given the
 question, the SQL that ran, and the returned rows, write a concise 2-4
 sentence answer with the key numbers. If the result is empty, say so honestly.
