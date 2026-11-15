@@ -104,7 +104,8 @@ tracing of every node and LLM call.
 - [x] Eval harness (execution accuracy + categories + history)
 - [x] Streaming (`--stream`) + pytest suite
 - [x] FastAPI service layer (`/ask`, `/ask/stream` SSE, `/schema`, `/health`)
-- [ ] Stretch: QLoRA fine-tuned small model vs API baseline
+- [x] Distillation data pipeline (`src/gen_training_data.py` — template-verified SQL, LLM paraphrase) + QLoRA notebook (`notebooks/finetune_qlora.ipynb`, Qwen2.5-Coder-1.5B on free Colab T4)
+- [ ] Run the Colab fine-tune + student-vs-teacher eval bake-off
 
 ## License
 
