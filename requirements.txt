@@ -10,5 +10,6 @@ pandas
 matplotlib
 fastapi
 uvicorn
+mcp
 jupyter
 python-dotenv

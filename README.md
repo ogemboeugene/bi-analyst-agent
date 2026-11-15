@@ -1,5 +1,7 @@
 # bi-analyst-agent
 
+![CI](https://github.com/ogemboeugene/bi-analyst-agent/actions/workflows/ci.yml/badge.svg)
+
 A LangGraph BI analyst agent: ask questions in plain English, get validated SQL,
 executed results, charts, and a written explanation — with agent memory,
 guardrails, and measured accuracy. Built as the standalone research version of
@@ -10,7 +12,10 @@ conversational-BI techniques I ship in production.
 ```mermaid
 graph TD
     Q[question] --> RQ[resolve_question<br/>rewrite follow-ups via history]
-    RQ --> P[plan]
+    RQ --> I[intent<br/>front-door safety classify]
+    I -->|write/DDL/out-of-scope| REF[refuse: polite decline]
+    REF --> END((END))
+    I -->|analytics_read| P[plan]
     P --> G[generate_sql<br/>structured output + few-shot exemplars]
     G --> V[validate<br/>sqlglot parse · read-only · LIMIT · EXPLAIN]
     V -->|guardrail/plan error| SC
@@ -56,7 +61,12 @@ python -m src.cli "and by segment?" --thread demo        # follow-up uses memory
 python -m src.cli "monthly revenue trend" --stream       # live node events
 python -m src.eval_harness                               # accuracy on golden set
 uvicorn src.api:app --reload                             # POST /ask, /ask/stream (SSE), /schema, /health
-pytest -q                                                # 31 tests
+python -m src.mcp_server                                 # expose tools to any MCP client
+langgraph dev                                            # visual graph studio (langgraph.json)
+pytest -q                                                # 32 tests
+```
+
+![Demo](docs/demo-chart.png)
 ```
 
 ## Measured results
@@ -68,11 +78,21 @@ Eval-driven iteration on the 12-question golden set (`evals/history.jsonl`):
 | Baseline (DDL schema only) | 25% | — |
 | + business glossary (status semantics) | 58% | `revenue`/`sold` → `status='completed'` |
 | + scoped rules (surrogate keys, buyer-listing, share shape) | 92% | entity-vs-metric output rules |
-| + intent rule (named entity, no aggregation word → list) | **100%** | `src/semantics.py` |
+| + intent rule (named entity, no aggregation word → list) | 100% | `src/semantics.py` |
+| + adversarial cases (write/DDL/out-of-scope must refuse), negation, intent gate | **100% on 16** | `intent` node + turn-state reset |
 
-Honest scope note: 12 questions is a starter set — the wins came from
-generalizable semantic rules, not per-question hacks. Growing the golden set
-is the natural next contribution.
+Honest scope notes:
+
+- Ambiguous question phrasing matters — one golden item ("customers who
+  bought electronics") flipped between list-vs-aggregate interpretations
+  across runs; clarifying eval phrasing is legitimate set hygiene, recorded
+  in `evals/history.jsonl`.
+- Two real bugs were found BY the eval, not by demos: the self-correction
+  loop rewrote guardrail-blocked hostile SQL into benign queries (fixed via
+  front-door `intent` refusal), and checkpointer state leaked the previous
+  turn's SQL into refused turns (fixed via explicit turn-state reset).
+- 16 questions is still a starter set — growing it is the natural next
+  contribution.
 
 ## Design notes
 
