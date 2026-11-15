@@ -1,5 +1,16 @@
 """Prompt templates for each agent node."""
 
+INTENT_PROMPT = """Classify a user request to a read-only analytics agent.
+
+analytics_read  — a question answerable by reading the data (counts,
+                  aggregations, lists, trends).
+write_or_ddl    — any request to change data or schema (delete, update,
+                  insert, drop, create, alter, truncate).
+out_of_scope    — not answerable from the database at all (weather, news,
+                  general knowledge, unrelated domains).
+
+Output only the classification and a short reason."""
+
 PLAN_PROMPT = """You are a senior BI analyst. Given a user question and the database
 schema, write a 1-3 sentence analysis plan: which tables/columns matter and
 what aggregation or filtering is needed. Be terse. No SQL yet."""

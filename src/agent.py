@@ -22,6 +22,7 @@ from .llm import chat, chat_structured
 from .prompts import (
     CORRECT_SQL_PROMPT,
     GENERATE_SQL_PROMPT,
+    INTENT_PROMPT,
     NARRATE_PROMPT,
     PLAN_PROMPT,
     REWRITE_PROMPT,
@@ -34,6 +35,13 @@ class SqlAnswer(BaseModel):
     rationale: str = Field(description="One sentence: why this answers the question")
 
 
+class Intent(BaseModel):
+    category: str = Field(
+        description="analytics_read | write_or_ddl | out_of_scope"
+    )
+    reason: str = Field(description="Short reason for the classification")
+
+
 class AgentState(TypedDict, total=False):
     question: str
     plan: str
@@ -44,6 +52,7 @@ class AgentState(TypedDict, total=False):
     error: Optional[str]
     attempts: int
     chart_path: Optional[str]
+    intent: str
     answer: str
     history: list[str]
     trace: list[str]
@@ -74,6 +83,28 @@ def resolve_question(state: AgentState) -> dict:
         f"History:\n" + "\n".join(history[-6:]) + f"\n\nFollow-up: {q}",
     )
     return {"question": rewritten, **_trace(state, f"resolve:rewrote -> {rewritten[:60]}")}
+
+
+def intent(state: AgentState) -> dict:
+    """Front-door safety: refuse writes/DDL and out-of-scope before any SQL
+    is generated. SQL-level guardrails still run as defense in depth."""
+    out: Intent = chat_structured(INTENT_PROMPT, state["question"], Intent)
+    return {
+        "intent": out.category,
+        **_trace(state, f"intent:{out.category}"),
+    }
+
+
+def refuse(state: AgentState) -> dict:
+    return {
+        "answer": (
+            "I can only answer read-only analytics questions against the "
+            "sales dataset (orders, customers, products). Your request looks "
+            f"like it needs {state.get('intent', 'other')} access or is "
+            "outside that scope."
+        ),
+        **_trace(state, "refuse"),
+    }
 
 
 def plan(state: AgentState) -> dict:
@@ -231,6 +262,8 @@ def fail(state: AgentState) -> dict:
 def build_graph() -> StateGraph:
     g = StateGraph(AgentState)
     g.add_node("resolve_question", resolve_question)
+    g.add_node("intent", intent)
+    g.add_node("refuse", refuse)
     g.add_node("plan", plan)
     g.add_node("generate_sql", generate_sql)
     g.add_node("validate", validate)
@@ -242,7 +275,11 @@ def build_graph() -> StateGraph:
     g.add_node("fail", fail)
 
     g.add_edge(START, "resolve_question")
-    g.add_edge("resolve_question", "plan")
+    g.add_edge("resolve_question", "intent")
+    g.add_conditional_edges(
+        "intent",
+        lambda s: "refuse" if s.get("intent") != "analytics_read" else "plan",
+    )
     g.add_edge("plan", "generate_sql")
     g.add_edge("generate_sql", "validate")
     g.add_conditional_edges("validate", _route_after_validate)
@@ -251,9 +288,13 @@ def build_graph() -> StateGraph:
     g.add_edge("chart", "narrate")
     g.add_edge("narrate", "remember")
     g.add_edge("remember", END)
+    g.add_edge("refuse", END)
     g.add_edge("fail", END)
     return g
 
+
+# LangGraph Studio / `langgraph dev` entrypoint (platform injects checkpointer)
+graph = build_graph().compile()
 
 _compiled = None
 
@@ -267,10 +308,30 @@ def _get_graph():
     return _compiled
 
 
+def _new_turn(question: str) -> dict:
+    """Turn-scoped fields must be cleared explicitly: with a checkpointer,
+    invoked state merges onto the previous turn's checkpoint — a refused
+    turn would otherwise leak the prior turn's sql/rows into its state."""
+    return {
+        "question": question,
+        "attempts": 0,
+        "trace": [],
+        "intent": None,
+        "plan": None,
+        "schema_context": None,
+        "sql": None,
+        "columns": [],
+        "rows": [],
+        "error": None,
+        "chart_path": None,
+        "answer": None,
+    }
+
+
 def ask(question: str, thread_id: str = "default") -> AgentState:
     """Run one turn. Same thread_id = shared conversation history."""
     return _get_graph().invoke(
-        {"question": question, "attempts": 0, "trace": []},
+        _new_turn(question),
         config={"configurable": {"thread_id": thread_id}},
     )
 
@@ -278,7 +339,7 @@ def ask(question: str, thread_id: str = "default") -> AgentState:
 def ask_stream(question: str, thread_id: str = "default"):
     """Yield (node, state-delta) events as the graph executes."""
     yield from _get_graph().stream(
-        {"question": question, "attempts": 0, "trace": []},
+        _new_turn(question),
         config={"configurable": {"thread_id": thread_id}},
         stream_mode="updates",
     )

@@ -1,18 +1,19 @@
 """API tests via TestClient with canned LLM."""
 import src.agent as agent
 from fastapi.testclient import TestClient
-from src.agent import SqlAnswer
+from src.agent import Intent, SqlAnswer
 from src.api import app
 
 
 def _patch(monkeypatch):
-    monkeypatch.setattr(
-        agent,
-        "chat_structured",
-        lambda s, u, schema: SqlAnswer(
+    def structured(system, user, schema):
+        if schema is Intent:
+            return Intent(category="analytics_read", reason="test")
+        return SqlAnswer(
             sql="SELECT COUNT(*) AS n FROM orders", rationale="canned"
-        ),
-    )
+        )
+
+    monkeypatch.setattr(agent, "chat_structured", structured)
     monkeypatch.setattr(agent, "chat", lambda s, u: "canned text")
     agent._index = None
 

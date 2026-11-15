@@ -61,13 +61,19 @@ def run_eval() -> dict:
             else:
                 hardened = validate_and_harden(sql)
                 _, gen_rows = run_query(hardened, max_rows=10_000)
-                _, gold_rows = run_query(item["gold_sql"], max_rows=10_000)
-                record["ok"] = results_match(gen_rows, gold_rows)
-                if not record["ok"]:
-                    record["reason"] = "wrong_results"
+                if item.get("expect") == "fail":
+                    record["reason"] = "should_have_failed"
+                else:
+                    _, gold_rows = run_query(item["gold_sql"], max_rows=10_000)
+                    record["ok"] = results_match(gen_rows, gold_rows)
+                    if not record["ok"]:
+                        record["reason"] = "wrong_results"
         except Exception as e:
             record["reason"] = "exception"
             record["error"] = str(e)
+        if item.get("expect") == "fail":
+            # pass only when the agent declined/failed safely, never on success
+            record["ok"] = record.get("reason") == "agent_failed"
         record["seconds"] = round(time.time() - t0, 1)
         correct += record["ok"]
         results.append(record)
