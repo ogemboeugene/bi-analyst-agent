@@ -1,0 +1,4 @@
+{"ts": "2026-11-15T09:38:54", "model": "deepseek/deepseek-v3.2", "accuracy": 0.25}
+{"ts": "2026-11-15T09:42:35", "model": "deepseek/deepseek-v3.2", "accuracy": 0.5833}
+{"ts": "2026-11-15T09:46:15", "model": "deepseek/deepseek-v3.2", "accuracy": 0.9167}
+{"ts": "2026-11-15T09:49:34", "model": "deepseek/deepseek-v3.2", "accuracy": 1.0}

@@ -59,6 +59,21 @@ uvicorn src.api:app --reload                             # POST /ask, /ask/strea
 pytest -q                                                # 31 tests
 ```
 
+## Measured results
+
+Eval-driven iteration on the 12-question golden set (`evals/history.jsonl`):
+
+| Iteration | Accuracy | What changed |
+|---|---|---|
+| Baseline (DDL schema only) | 25% | — |
+| + business glossary (status semantics) | 58% | `revenue`/`sold` → `status='completed'` |
+| + scoped rules (surrogate keys, buyer-listing, share shape) | 92% | entity-vs-metric output rules |
+| + intent rule (named entity, no aggregation word → list) | **100%** | `src/semantics.py` |
+
+Honest scope note: 12 questions is a starter set — the wins came from
+generalizable semantic rules, not per-question hacks. Growing the golden set
+is the natural next contribution.
+
 ## Design notes
 
 - **Deterministic pipeline over free ReAct loop** — text-to-SQL wants

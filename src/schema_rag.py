@@ -10,6 +10,7 @@ import re
 from dataclasses import dataclass
 
 from .db import schema_ddl
+from .semantics import GLOSSARY
 
 
 @dataclass
@@ -38,13 +39,15 @@ class SchemaIndex:
         ]
 
     def retrieve(self, question: str, k: int = 8) -> str:
-        """Return the top-k table DDLs relevant to the question."""
+        """Return the top-k table DDLs relevant to the question, plus the
+        business glossary (semantics are always needed, not ranked)."""
         q_tokens = _tokenize(question)
         if len(self.docs) <= k:
-            return "\n\n".join(d.ddl for d in self.docs)
-        ranked = sorted(
-            self.docs,
-            key=lambda d: len(d.tokens & q_tokens),
-            reverse=True,
-        )
-        return "\n\n".join(d.ddl for d in ranked[:k])
+            chosen = self.docs
+        else:
+            chosen = sorted(
+                self.docs,
+                key=lambda d: len(d.tokens & q_tokens),
+                reverse=True,
+            )[:k]
+        return "\n\n".join(d.ddl for d in chosen) + "\n\n" + GLOSSARY

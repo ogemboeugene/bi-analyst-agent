@@ -33,7 +33,7 @@
     "id": "category_share",
     "category": "share",
     "question": "Revenue share by product category",
-    "gold_sql": "SELECT p.category, SUM(oi.quantity * oi.unit_price) AS revenue FROM order_items oi JOIN products p ON oi.product_id = p.product_id JOIN orders o ON oi.order_id = o.order_id WHERE o.status = 'completed' GROUP BY p.category ORDER BY revenue DESC"
+    "gold_sql": "SELECT p.category, SUM(oi.quantity * oi.unit_price) AS revenue, SUM(oi.quantity * oi.unit_price) / (SELECT SUM(oi2.quantity * oi2.unit_price) FROM order_items oi2 JOIN orders o2 ON oi2.order_id = o2.order_id WHERE o2.status = 'completed') AS revenue_share FROM order_items oi JOIN products p ON oi.product_id = p.product_id JOIN orders o ON oi.order_id = o.order_id WHERE o.status = 'completed' GROUP BY p.category ORDER BY revenue DESC"
   },
   {
     "id": "top_customer",

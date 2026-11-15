@@ -1,0 +1,236 @@
+{
+  "accuracy": 1.0,
+  "correct": 12,
+  "total": 12,
+  "model": "deepseek/deepseek-v3.2",
+  "by_category": {
+    "distinct_count": 1.0,
+    "filter_count": 1.0,
+    "join_aggregation": 1.0,
+    "multi_filter": 1.0,
+    "multi_step": 1.0,
+    "ratio": 1.0,
+    "share": 1.0,
+    "simple": 1.0,
+    "time_series": 1.0,
+    "top_n": 1.0
+  },
+  "results": [
+    {
+      "id": "rev_by_country",
+      "category": "join_aggregation",
+      "ok": true,
+      "sql": "SELECT c.country, SUM(oi.quantity * oi.unit_price) AS total_revenue FROM orders AS o JOIN order_items AS oi ON o.order_id = oi.order_id JOIN customers AS c ON o.customer_id = c.customer_id WHERE o.status = 'completed' GROUP BY c.country ORDER BY total_revenue DESC LIMIT 200",
+      "attempts": 0,
+      "trace": [
+        "resolve:standalone",
+        "plan",
+        "generate_sql",
+        "validate:ok",
+        "execute:6 rows",
+        "chart:saved",
+        "narrate",
+        "remember:saved"
+      ],
+      "seconds": 13.7
+    },
+    {
+      "id": "top_products",
+      "category": "top_n",
+      "ok": true,
+      "sql": "SELECT p.name, SUM(oi.quantity * oi.unit_price) AS revenue FROM order_items AS oi JOIN orders AS o ON oi.order_id = o.order_id JOIN products AS p ON oi.product_id = p.product_id WHERE o.status = 'completed' GROUP BY p.name ORDER BY revenue DESC LIMIT 5",
+      "attempts": 0,
+      "trace": [
+        "resolve:rewrote -> What are the top 5 products by revenue?",
+        "plan",
+        "generate_sql",
+        "validate:ok",
+        "execute:5 rows",
+        "chart:saved",
+        "narrate",
+        "remember:saved"
+      ],
+      "seconds": 11.4
+    },
+    {
+      "id": "order_count_status",
+      "category": "filter_count",
+      "ok": true,
+      "sql": "SELECT COUNT(*) AS returned_orders FROM orders WHERE status = 'returned' LIMIT 200",
+      "attempts": 0,
+      "trace": [
+        "resolve:rewrote -> How many orders were returned?",
+        "plan",
+        "generate_sql",
+        "validate:ok",
+        "execute:1 rows",
+        "chart:skipped",
+        "narrate",
+        "remember:saved"
+      ],
+      "seconds": 10.7
+    },
+    {
+      "id": "avg_order_value_segment",
+      "category": "ratio",
+      "ok": true,
+      "sql": "SELECT c.segment, AVG(order_total) AS avg_order_value FROM (SELECT o.order_id, o.customer_id, SUM(oi.quantity * oi.unit_price) AS order_total FROM orders AS o JOIN order_items AS oi ON o.order_id = oi.order_id WHERE o.status = 'completed' GROUP BY o.order_id, o.customer_id) AS order_totals JOIN customers AS c ON order_totals.customer_id = c.customer_id GROUP BY c.segment ORDER BY c.segment LIMIT 200",
+      "attempts": 0,
+      "trace": [
+        "resolve:rewrote -> What is the average order value by customer segment?",
+        "plan",
+        "generate_sql",
+        "validate:ok",
+        "execute:3 rows",
+        "chart:saved",
+        "narrate",
+        "remember:saved"
+      ],
+      "seconds": 16.6
+    },
+    {
+      "id": "monthly_revenue",
+      "category": "time_series",
+      "ok": true,
+      "sql": "SELECT STRFTIME('%Y-%m', orders.order_date) AS month, SUM(order_items.quantity * order_items.unit_price) AS revenue FROM orders JOIN order_items ON orders.order_id = order_items.order_id WHERE orders.status = 'completed' AND STRFTIME('%Y', orders.order_date) = '2025' GROUP BY month ORDER BY month LIMIT 200",
+      "attempts": 0,
+      "trace": [
+        "resolve:rewrote -> What is the monthly revenue trend for 2025?",
+        "plan",
+        "generate_sql",
+        "validate:ok",
+        "execute:12 rows",
+        "chart:saved",
+        "narrate",
+        "remember:saved"
+      ],
+      "seconds": 18.3
+    },
+    {
+      "id": "category_share",
+      "category": "share",
+      "ok": true,
+      "sql": "SELECT p.category, SUM(oi.quantity * oi.unit_price) AS revenue, SUM(oi.quantity * oi.unit_price) / (SELECT SUM(oi2.quantity * oi2.unit_price) FROM order_items AS oi2 JOIN orders AS o2 ON oi2.order_id = o2.order_id WHERE o2.status = 'completed') AS revenue_share FROM order_items AS oi JOIN orders AS o ON oi.order_id = o.order_id JOIN products AS p ON oi.product_id = p.product_id WHERE o.status = 'completed' GROUP BY p.category ORDER BY revenue DESC LIMIT 200",
+      "attempts": 0,
+      "trace": [
+        "resolve:rewrote -> What is the revenue share by product category?",
+        "plan",
+        "generate_sql",
+        "validate:ok",
+        "execute:5 rows",
+        "chart:saved",
+        "narrate",
+        "remember:saved"
+      ],
+      "seconds": 19.4
+    },
+    {
+      "id": "top_customer",
+      "category": "top_n",
+      "ok": true,
+      "sql": "SELECT c.name, SUM(oi.quantity * oi.unit_price) AS total_spent FROM customers AS c JOIN orders AS o ON c.customer_id = o.customer_id JOIN order_items AS oi ON o.order_id = oi.order_id WHERE o.status = 'completed' GROUP BY c.name ORDER BY total_spent DESC LIMIT 1",
+      "attempts": 0,
+      "trace": [
+        "resolve:rewrote -> Which customer spent the most?",
+        "plan",
+        "generate_sql",
+        "validate:ok",
+        "execute:1 rows",
+        "chart:skipped",
+        "narrate",
+        "remember:saved"
+      ],
+      "seconds": 11.4
+    },
+    {
+      "id": "unique_customers",
+      "category": "distinct_count",
+      "ok": true,
+      "sql": "SELECT COUNT(DISTINCT customer_id) AS unique_customers FROM orders WHERE order_date >= '2025-01-01' AND order_date < '2026-01-01' LIMIT 200",
+      "attempts": 0,
+      "trace": [
+        "resolve:rewrote -> How many unique customers placed orders in 2025?",
+        "plan",
+        "generate_sql",
+        "validate:ok",
+        "execute:1 rows",
+        "chart:skipped",
+        "narrate",
+        "remember:saved"
+      ],
+      "seconds": 8.8
+    },
+    {
+      "id": "kenya_electronics",
+      "category": "multi_filter",
+      "ok": true,
+      "sql": "SELECT DISTINCT c.name FROM customers AS c JOIN orders AS o ON c.customer_id = o.customer_id JOIN order_items AS oi ON o.order_id = oi.order_id JOIN products AS p ON oi.product_id = p.product_id WHERE c.country = 'Kenya' AND p.category = 'electronics' ORDER BY c.name LIMIT 200",
+      "attempts": 0,
+      "trace": [
+        "resolve:rewrote -> Which customers in Kenya purchased electronics?",
+        "plan",
+        "generate_sql",
+        "validate:ok",
+        "execute:15 rows",
+        "chart:skipped",
+        "narrate",
+        "remember:saved"
+      ],
+      "seconds": 28.5
+    },
+    {
+      "id": "newest_customers",
+      "category": "simple",
+      "ok": true,
+      "sql": "SELECT name, signed_up FROM customers ORDER BY signed_up DESC LIMIT 5",
+      "attempts": 0,
+      "trace": [
+        "resolve:rewrote -> Who are the 5 most recently signed-up customers?",
+        "plan",
+        "generate_sql",
+        "validate:ok",
+        "execute:5 rows",
+        "chart:skipped",
+        "narrate",
+        "remember:saved"
+      ],
+      "seconds": 13.2
+    },
+    {
+      "id": "cancelled_rev_loss",
+      "category": "multi_step",
+      "ok": true,
+      "sql": "SELECT SUM(order_items.quantity * order_items.unit_price) AS lost_revenue FROM orders JOIN order_items ON orders.order_id = order_items.order_id WHERE orders.status = 'cancelled' AND orders.order_date >= '2025-01-01' AND orders.order_date < '2026-01-01' LIMIT 200",
+      "attempts": 0,
+      "trace": [
+        "resolve:rewrote -> How much revenue was lost to cancelled orders in 2025?",
+        "plan",
+        "generate_sql",
+        "validate:ok",
+        "execute:1 rows",
+        "chart:skipped",
+        "narrate",
+        "remember:saved"
+      ],
+      "seconds": 10.4
+    },
+    {
+      "id": "qty_by_category",
+      "category": "join_aggregation",
+      "ok": true,
+      "sql": "SELECT p.category, SUM(oi.quantity) AS total_units_sold FROM order_items AS oi INNER JOIN orders AS o ON oi.order_id = o.order_id INNER JOIN products AS p ON oi.product_id = p.product_id WHERE o.status = 'completed' GROUP BY p.category ORDER BY total_units_sold DESC LIMIT 200",
+      "attempts": 0,
+      "trace": [
+        "resolve:rewrote -> What is the total units sold per product category?",
+        "plan",
+        "generate_sql",
+        "validate:ok",
+        "execute:5 rows",
+        "chart:saved",
+        "narrate",
+        "remember:saved"
+      ],
+      "seconds": 11.4
+    }
+  ]
+}
