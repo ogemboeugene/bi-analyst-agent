@@ -8,8 +8,9 @@ plan → retrieve_schema → generate_sql → validate → execute
 """
 from __future__ import annotations
 
-import re
 from typing import Any, Optional, TypedDict
+
+from pydantic import BaseModel, Field
 
 from langgraph.graph import END, START, StateGraph
 
@@ -17,7 +18,7 @@ from .config import settings
 from .db import explain, run_query
 from .exemplars import few_shot_block, save as save_exemplar
 from .guardrails import GuardrailError, validate_and_harden
-from .llm import chat
+from .llm import chat, chat_structured
 from .prompts import (
     CORRECT_SQL_PROMPT,
     GENERATE_SQL_PROMPT,
@@ -25,6 +26,11 @@ from .prompts import (
     PLAN_PROMPT,
 )
 from .schema_rag import SchemaIndex
+
+
+class SqlAnswer(BaseModel):
+    sql: str = Field(description="One read-only SELECT query, DuckDB dialect")
+    rationale: str = Field(description="One sentence: why this answers the question")
 
 
 class AgentState(TypedDict, total=False):
@@ -70,11 +76,12 @@ def generate_sql(state: AgentState) -> dict:
         else f"Question: {q}"
     )
     memory = few_shot_block(q)
-    raw = chat(
+    ans: SqlAnswer = chat_structured(
         GENERATE_SQL_PROMPT.format(schema=state["schema_context"]),
         f"{user}\n\n{memory}" if memory else user,
+        SqlAnswer,
     )
-    sql = _strip_fences(raw)
+    sql = ans.sql.strip()
     return {"sql": sql, "error": None, **_trace(state, "generate_sql")}
 
 
@@ -105,16 +112,17 @@ def execute(state: AgentState) -> dict:
 
 def self_correct(state: AgentState) -> dict:
     attempts = state.get("attempts", 0) + 1
-    raw = chat(
+    ans: SqlAnswer = chat_structured(
         CORRECT_SQL_PROMPT.format(
             schema=state["schema_context"],
             sql=state["sql"],
             error=state["error"],
         ),
         f"Question: {state['question']}",
+        SqlAnswer,
     )
     return {
-        "sql": _strip_fences(raw),
+        "sql": ans.sql.strip(),
         "attempts": attempts,
         "error": None,
         **_trace(state, f"self_correct:attempt {attempts}"),
@@ -173,11 +181,6 @@ def remember(state: AgentState) -> dict:
         save_exemplar(state["question"], state["sql"])
         return _trace(state, "remember:saved")
     return _trace(state, "remember:skipped")
-
-
-def _strip_fences(text: str) -> str:
-    m = re.search(r"```(?:sql)?\s*(.*?)```", text, re.S)
-    return (m.group(1) if m else text).strip()
 
 
 def _route_after_execute(state: AgentState) -> str:

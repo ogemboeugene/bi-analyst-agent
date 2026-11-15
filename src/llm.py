@@ -25,3 +25,10 @@ def chat(system: str, user: str) -> str:
         [SystemMessage(content=system), HumanMessage(content=user)]
     )
     return resp.content.strip()
+
+
+def chat_structured(system: str, user: str, schema):
+    """Provider-native structured output (ToolStrategy fallback per model)."""
+    return _get_llm().with_structured_output(schema).invoke(
+        [SystemMessage(content=system), HumanMessage(content=user)]
+    )
